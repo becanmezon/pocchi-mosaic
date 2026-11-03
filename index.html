@@ -80,6 +80,12 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .stat b{font-family:var(--f-mono);font-size:17px;font-weight:500;font-variant-numeric:tabular-nums}
 .mixbar{display:flex;height:6px;border-radius:3px;overflow:hidden;margin-top:6px;background:var(--line)}
 .mixbar i{display:block;height:100%}
+.export{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;align-items:start}
+@media (max-width:640px){.export{grid-template-columns:minmax(0,1fr)}}
+.export-img{background:var(--stage);border-radius:8px;padding:10px;min-width:0}
+.export-img img{display:block;margin:0 auto;max-width:100%;max-height:420px;width:auto;height:auto}
+.export-side{display:flex;flex-direction:column;gap:8px}
+.export-side h2{margin:0;font-size:15px}
 .parts{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
 .parts-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
 .parts-head h2{margin:0;font-size:15px}
@@ -185,6 +191,17 @@ tfoot td{font-weight:500;border-bottom:0}
     <div class="stage" id="stage"><canvas id="cv"></canvas></div>
     <div class="status" id="status"><span>マスにカーソルを合わせると、位置と部品が出ます。「積み方 切替」でブロックをクリックすると 正面→横→縦 の順に変わります。</span></div>
     <div class="stats" id="stats"></div>
+    <div class="export">
+      <div class="export-img"><img id="preview" alt="完成イメージ（右クリックでコピー・保存）"></div>
+      <div class="export-side">
+        <h2>書き出し</h2>
+        <p class="hint">左の完成イメージは、右クリック（スマホは長押し）で「画像をコピー」「画像を保存」ができます。線や下絵は入りません。</p>
+        <button class="btn" id="copyImg">画像をコピー</button>
+        <button class="btn primary" id="dlLdr">LDRファイルを保存</button>
+        <button class="btn" id="copyLdr">LDRをテキストでコピー</button>
+        <p class="hint">LDRはLDraw形式の3Dデータです。BrickLink Studio（Stud.io）やLeoCADでそのまま開けます。ブロック1段ごとに組み立てステップを区切っています。</p>
+      </div>
+    </div>
     <div class="parts">
       <div class="parts-head">
         <h2>必要なパーツ</h2>
@@ -221,6 +238,8 @@ function lab(r,g,b){const R=LUT[r|0],G=LUT[g|0],B=LUT[b|0];
   return [116*fy-16,500*(fx-fy),200*(fy-fz)]}
 const PAL=PAL_RAW.map(([en,ja,h])=>{const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4),16);return{en,ja,hex:'#'+h,rgb:[r,g,b],lab:lab(r,g,b)}});
 const enabled=PAL.map(()=>true);
+// LDraw の色番号（PAL と同じ順）
+const LD=[15,71,72,0,4,320,353,29,5,26,30,85,272,1,73,321,322,379,3,378,288,2,10,27,330,14,226,191,25,484,19,28,78,92,84,70,308,297];
 const KIND=['ポッチ正面','横積み','縦積み'],OV=['ovStud','ovSide','ovV'],KCOL=['--accent','--yellow','--blue'];
 
 const st={img:null,name:'サンプル画像（富士と波）',W:48,BW:2,use:[true,true,true],sens:55,smooth:true,tool:'paint',paint:4,palmode:'paint',overlay:0,grid:true,zoom:100};
@@ -316,17 +335,18 @@ function studSprite(i){if(sprites[i])return sprites[i];const c=document.createEl
   const g=x.createRadialGradient(cx-r*.4,cx-r*.45,r*.1,cx,cx,r);g.addColorStop(0,shade(rgb,.35));g.addColorStop(1,PAL[i].hex);
   x.fillStyle=g;x.beginPath();x.arc(cx,cx,r,0,7);x.fill();x.strokeStyle=shade(rgb,-.25);x.lineWidth=Math.max(1,P/30);x.stroke();
   return sprites[i]=c}
-function plate(x,y,w,h,c){const rgb=PAL[c].rgb;ctx.fillStyle=PAL[c].hex;ctx.fillRect(x,y,w,h);
+function plate(ctx,x,y,w,h,c){const rgb=PAL[c].rgb;ctx.fillStyle=PAL[c].hex;ctx.fillRect(x,y,w,h);
   ctx.fillStyle=shade(rgb,.25);ctx.fillRect(x,y,w,1);ctx.fillRect(x,y,1,h);
   ctx.fillStyle=shade(rgb,-.4);ctx.fillRect(x,y+h-1,w,1);ctx.fillRect(x+w-1,y,1,h)}
 
-function render(){dirty=false;const{W,BX,BY,BW}=G;ctx.fillStyle='#1a1c1f';ctx.fillRect(0,0,cv.width,cv.height);
+function render(){dirty=false;draw(ctx,{grid:st.grid,overlay:st.overlay,hover})}
+function draw(ctx,o){const{W,BX,BY,BW}=G,cw=ctx.canvas.width,ch=ctx.canvas.height,hover=o.hover;ctx.fillStyle='#1a1c1f';ctx.fillRect(0,0,cw,ch);
   for(let by=0;by<BY;by++)for(let bx=0;bx<BX;bx++){if(modeAt(by*BX+bx)!==0)continue;
     for(let r=by*2;r<by*2+2;r++)for(let q=bx*BW;q<(bx+1)*BW;q++)ctx.drawImage(studSprite(studC(r*W+q)),q*P,r*P)}
-  for(const[r,x,L,c]of sidePieces())plate(x*P,(r/5|0)*2*P+(r%5)*PL,L*P,PL,c);
-  for(const[q,r,L,c]of vertPieces())plate(q*PL,r*P,PL,L*P,c);
-  if(st.overlay>0){ctx.globalAlpha=st.overlay/100;ctx.drawImage(st.img,...G.crop,0,0,cv.width,cv.height);ctx.globalAlpha=1}
-  if(st.grid){ctx.strokeStyle='rgba(255,255,255,.3)';ctx.lineWidth=1;ctx.beginPath();
+  for(const[r,x,L,c]of sidePieces())plate(ctx,x*P,(r/5|0)*2*P+(r%5)*PL,L*P,PL,c);
+  for(const[q,r,L,c]of vertPieces())plate(ctx,q*PL,r*P,PL,L*P,c);
+  if(o.overlay>0){ctx.globalAlpha=o.overlay/100;ctx.drawImage(st.img,...G.crop,0,0,cw,ch);ctx.globalAlpha=1}
+  if(o.grid){ctx.strokeStyle='rgba(255,255,255,.3)';ctx.lineWidth=1;ctx.beginPath();
     for(let by=0;by<BY;by++)for(let bx=0;bx<BX;bx++){const m=modeAt(by*BX+bx),y0=by*2*P,x0=bx*BW*P,x1=x0+BW*P,y1=y0+2*P;
       if(m===2){for(let k=1;k<BW*2.5;k++){ctx.moveTo(x0+k*PL+.5,y0);ctx.lineTo(x0+k*PL+.5,y1)}}
       else for(let q=1;q<BW;q++){ctx.moveTo(x0+q*P+.5,y0);ctx.lineTo(x0+q*P+.5,y1)}
@@ -381,7 +401,36 @@ function parts(){const{W,BX,BY,BW}=G,rows=PAL.map(()=>({s:0,p:{1:0,2:0,3:0,4:0,6
   $('#stats').innerHTML=[['仕上がり寸法',`${(W*0.8).toFixed(1)}×${(BY*1.6).toFixed(1)}cm`],['ブロック数',`${BX}×${BY}`],
     ['積み方の割合',`${pc(0)} / ${pc(1)} / ${pc(2)}%`+bar,'正面 / 横 / 縦'],['パーツ総数',T('t').toLocaleString()]]
     .map(([a,b,s])=>`<div class="stat"><small>${a}${s?`（${s}）`:''}</small><b>${b}</b></div>`).join('');
+  schedulePreview();
   parts.text=['色\tポッチ正面1×1\tプレート1×1\t1×2\t1×3\t1×4\t1×6\t1×8\t合計',...list.map(v=>[`${PAL[v.i].ja} (${PAL[v.i].en})`,v.s,...[1,2,3,4,6,8].map(k=>v.p[k]),v.t].join('\t'))].join('\n')}
+// 完成イメージ（線・下絵なしのPNG）。<img> なので右クリックでコピー・保存できる
+let pvURL=null,pvBlob=null,pvT;
+function schedulePreview(){clearTimeout(pvT);pvT=setTimeout(makePreview,300)}
+function makePreview(){const o=document.createElement('canvas');o.width=cv.width;o.height=cv.height;draw(o.getContext('2d'),{});
+  o.toBlob(b=>{if(!b)return;if(pvURL)URL.revokeObjectURL(pvURL);pvBlob=b;pvURL=URL.createObjectURL(b);$('#preview').src=pvURL},'image/png')}
+$('#copyImg').onclick=async()=>{try{if(!pvBlob)throw 0;await navigator.clipboard.write([new ClipboardItem({'image/png':pvBlob})]);toast('画像をコピーしました')}
+  catch(e){toast('コピーできませんでした。完成イメージを右クリックしてコピーしてください')}};
+
+// LDraw 書き出し。1ポッチ=20LDU、プレート厚3.2mm=8LDU。見る方向は -Z（正面）、上は -Y
+const PART={1:'3024.dat',2:'3023.dat',3:'3623.dat',4:'3710.dat',6:'3666.dat',8:'3460.dat'};
+function makeLDR(){const{W,BX,BY,BW}=G,steps=Array.from({length:BY},()=>[]),f=n=>+n.toFixed(2);
+  const add=(by,c,x,y,z,m,p)=>steps[by].push(`1 ${LD[c]} ${f(x)} ${f(y)} ${f(z)} ${m} ${p}`);
+  // ポッチ正面：1×1プレートを寝かせ、ポッチを手前(-Z)へ向ける
+  for(let by=0;by<BY;by++)for(let bx=0;bx<BX;bx++){if(modeAt(by*BX+bx)!==0)continue;
+    for(let r=by*2;r<by*2+2;r++)for(let q=bx*BW;q<(bx+1)*BW;q++)add(by,studC(r*W+q),(q+.5)*20,(r+.5)*20,-10,'1 0 0 0 0 -1 0 1 0','3024.dat')}
+  // 横積み：普通に積んだプレート（側面が正面）
+  for(const[r,x,L,c]of sidePieces())add(r/5|0,c,(x+L/2)*20,r*8,0,'1 0 0 0 1 0 0 0 1',PART[L]);
+  // 縦積み：プレートを立て、長い方向を上下にする
+  for(const[q,r,L,c]of vertPieces())add((r+L-1)>>1,c,q*8,(r+L/2)*20,0,'0 1 0 1 0 0 0 0 -1',PART[L]);
+  const name=fileBase()+'.ldr',out=['0 Pocchi Mosaic','0 Name: '+name,'0 Author: Pocchi Mosaic Kobo','0 !LDRAW_ORG Unofficial_Model',
+    `0 // ${W} x ${BY*2} studs, ${W*8} x ${BY*16} mm`];
+  for(let by=BY-1;by>=0;by--){if(!steps[by].length)continue;out.push(`0 // block row ${BY-by} (from bottom)`,...steps[by],'0 STEP')}
+  return{name,text:out.join('\r\n')+'\r\n'}}
+function fileBase(){return(st.name.replace(/\.[^.]+$/,'').replace(/[\\/:*?"<>|\s（）()]+/g,'_').replace(/^_+|_+$/g,'')||'mosaic')+`_${G.W}x${G.BY*2}`}
+$('#dlLdr').onclick=()=>{const{name,text}=makeLDR(),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'application/x-ldraw'}));
+  a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);toast(`${name} を保存しました（保存されない場合は「LDRをテキストでコピー」を使ってください）`)};
+$('#copyLdr').onclick=async()=>{try{await navigator.clipboard.writeText(makeLDR().text);toast('LDRをコピーしました。テキストファイルに貼り付けて .ldr で保存してください')}catch(e){toast('コピーできませんでした')}};
+
 $('#copy').onclick=async()=>{try{await navigator.clipboard.writeText(parts.text);toast('パーツ表をコピーしました（表計算に貼り付けできます）')}catch(e){toast('コピーできませんでした。表を選択してコピーしてください')}};
 $('#clearEdits').onclick=()=>{const g=[];OV.concat('ovMode').forEach(k=>G[k].forEach((v,i)=>{if(v>=0){g.push([k,i,v]);G[k][i]=-1}}));if(g.length){hist.push(g);toast('手修正を消しました（元に戻すで復帰できます）')}req();parts()};
 
