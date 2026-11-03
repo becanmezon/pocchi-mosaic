@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>[hidden]{display:none!important}img{max-width:100%}</style>
+<title>ポッチモザイク工房</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Mono:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: 左に設定パネル、右に作業台（キャンバス）、下にパーツ表。スマホでは縦一列 */
+:root{
+  --bg:#e6e9ed; --panel:#fbfbfc; --ink:#1c222a; --muted:#5a6370; --line:#cdd3da;
+  --stage:#2a2e33; --accent:#c91a09; --accent-ink:#fff; --yellow:#f2cd37; --blue:#0055bf; --soft:#eef0f3;
+  --f-display:"Dela Gothic One","Zen Kaku Gothic New",system-ui,sans-serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#14171b; --panel:#1d2127; --ink:#e7eaee; --muted:#9aa3ae; --line:#323944;
+  --stage:#0d0f12; --accent:#ff4b38; --accent-ink:#160302; --yellow:#f2cd37; --blue:#4f8fe8; --soft:#262b33; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#14171b; --panel:#1d2127; --ink:#e7eaee; --muted:#9aa3ae; --line:#323944;
+  --stage:#0d0f12; --accent:#ff4b38; --accent-ink:#160302; --yellow:#f2cd37; --blue:#4f8fe8; --soft:#262b33; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 40px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;margin-bottom:14px}
+h1{font-family:var(--f-display);font-weight:400;font-size:26px;margin:0;letter-spacing:.02em}
+h1 span{color:var(--accent)}
+header p{margin:0;color:var(--muted);max-width:68ch}
+.app{display:grid;grid-template-columns:300px minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:860px){.app{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:16px}
+.sec{display:flex;flex-direction:column;gap:8px}
+.sec h2{font-size:11px;letter-spacing:.12em;color:var(--muted);margin:0;font-weight:700;text-transform:uppercase}
+label.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.val{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:12px;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.btn{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:7px;padding:6px 10px;cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+.btn:focus-visible,.seg button:focus-visible,.chip:focus-visible,.kind:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
+.seg{display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--soft)}
+.seg button{flex:1 1 auto;font:inherit;font-size:12.5px;border:0;background:transparent;color:var(--ink);padding:6px 9px;cursor:pointer;white-space:nowrap}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg);font-weight:700}
+.kinds{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.kind{font:inherit;font-size:12px;border:1.5px solid var(--line);background:var(--soft);color:var(--muted);border-radius:8px;padding:8px 4px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px}
+.kind svg{width:34px;height:34px}
+.kind[aria-pressed="true"]{border-color:var(--ink);color:var(--ink);font-weight:700;background:var(--panel)}
+.kind[aria-pressed="false"] svg{opacity:.35}
+.kind:disabled{cursor:not-allowed;opacity:.5}
+.hint{font-size:12px;color:var(--muted);margin:0}
+.drop{border:1.5px dashed var(--line);border-radius:8px;padding:10px;display:flex;gap:10px;align-items:center}
+.drop canvas{width:56px;height:56px;border-radius:5px;background:var(--soft);flex:none}
+.drop.over{border-color:var(--accent)}
+.palette{display:grid;grid-template-columns:repeat(auto-fill,minmax(30px,1fr));gap:5px}
+.chip{aspect-ratio:1;border-radius:5px;border:1px solid rgba(0,0,0,.25);cursor:pointer;position:relative;padding:0}
+.chip.sel{outline:3px solid var(--ink);outline-offset:1px}
+.chip.off{opacity:.18}
+.chip.off::after{content:"";position:absolute;inset:45% -2px auto;height:2px;background:var(--ink);transform:rotate(-45deg)}
+.curcolor{display:flex;align-items:center;gap:8px;font-size:12.5px}
+.curcolor i{width:18px;height:18px;border-radius:4px;border:1px solid rgba(0,0,0,.3);display:inline-block}
+.ratio svg{width:100%;height:auto;display:block}
+.s1{fill:var(--accent)} .s2{fill:var(--yellow)} .s3{fill:var(--blue)}
+.ratio .tx{fill:var(--muted);font-family:var(--f-mono);font-size:9.5px}
+.ratio .ln{stroke:var(--muted);stroke-width:1}
+.stud{fill:rgba(255,255,255,.3);stroke:rgba(0,0,0,.3)} .seam{stroke:rgba(0,0,0,.35);stroke-width:1}
+.work{display:flex;flex-direction:column;gap:10px;min-width:0}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.toolbar .grp{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+.toolbar input[type=range]{width:110px}
+.stage{background:var(--stage);border-radius:10px;overflow:auto;max-height:78vh;padding:12px;position:relative}
+.stage canvas{display:block;margin:0 auto;cursor:crosshair}
+.stage.view canvas{cursor:default}
+.status{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12.5px;color:var(--muted);min-height:20px}
+.status b{color:var(--ink);font-weight:500}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.stat small{display:block;font-size:11px;color:var(--muted);letter-spacing:.05em}
+.stat b{font-family:var(--f-mono);font-size:17px;font-weight:500;font-variant-numeric:tabular-nums}
+.mixbar{display:flex;height:6px;border-radius:3px;overflow:hidden;margin-top:6px;background:var(--line)}
+.mixbar i{display:block;height:100%}
+.parts{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+.parts-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.parts-head h2{margin:0;font-size:15px}
+.tblwrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:12.5px;min-width:620px}
+th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums;font-family:var(--f-mono)}
+th{font-family:var(--f-body);font-weight:700;color:var(--muted);font-size:11.5px;white-space:nowrap}
+th:first-child,td:first-child{text-align:left;font-family:var(--f-body)}
+td .sw{display:inline-block;width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.3);vertical-align:-2px;margin-right:6px}
+td.z{color:var(--line)}
+tfoot td{font-weight:500;border-bottom:0}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:calc(100% - 32px)}
+.toast.show{opacity:1}
+.tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;background:var(--yellow);color:#2a2100;font-weight:700}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head><body>
+
+<header>
+  <h1>ポッチ<span>モザイク</span>工房</h1>
+  <p>画像を「ポッチ正面（8×8mm）」「横積み（8×3.2mm）」「縦積み（3.2×8mm）」の3種類に分け、16mm＝2ポッチ＝プレート5枚の比率で自動的に混ぜます。平らな所はポッチ正面、横線が多い所は横積み、縦線が多い所は縦積みになります。</p>
+</header>
+
+<div class="app">
+  <aside class="panel">
+    <div class="sec">
+      <h2>画像</h2>
+      <div class="drop" id="drop">
+        <canvas id="thumb" width="112" height="112"></canvas>
+        <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+          <span id="imgname" class="hint">サンプル画像（富士と波）</span>
+          <label class="btn primary" style="text-align:center">画像を選ぶ<input id="file" type="file" accept="image/*" hidden></label>
+        </div>
+      </div>
+      <p class="hint">ドラッグ＆ドロップ、貼り付け（Ctrl+V）でも読み込めます。</p>
+    </div>
+
+    <div class="sec">
+      <h2>大きさ</h2>
+      <label class="row" for="width">横幅 <span class="val" id="widthv"></span></label>
+      <input id="width" type="range" min="16" max="128" step="2" value="48">
+      <label class="row">ブロック（切替の単位）</label>
+      <div class="seg" id="bw">
+        <button data-v="1" aria-pressed="false">1ポッチ</button>
+        <button data-v="2" aria-pressed="true">2ポッチ</button>
+        <button data-v="4" aria-pressed="false">4ポッチ</button>
+      </div>
+      <p class="hint" id="bwhint">1ブロック＝幅16mm×高さ16mm。この中を1種類の積み方で埋めます。</p>
+    </div>
+
+    <div class="sec">
+      <h2>使う積み方</h2>
+      <div class="kinds" id="kinds">
+        <button class="kind" data-k="0" aria-pressed="true"><svg viewBox="0 0 34 34"><rect class="s1" x="1" y="1" width="16" height="16"/><rect class="s1" x="17" y="1" width="16" height="16"/><rect class="s1" x="1" y="17" width="16" height="16"/><rect class="s1" x="17" y="17" width="16" height="16"/><circle class="stud" cx="9" cy="9" r="4.8"/><circle class="stud" cx="25" cy="9" r="4.8"/><circle class="stud" cx="9" cy="25" r="4.8"/><circle class="stud" cx="25" cy="25" r="4.8"/></svg>ポッチ正面</button>
+        <button class="kind" data-k="1" aria-pressed="true"><svg viewBox="0 0 34 34"><rect class="s2" x="1" y="1" width="32" height="32"/><g class="seam"><line x1="1" y1="7.4" x2="33" y2="7.4"/><line x1="1" y1="13.8" x2="33" y2="13.8"/><line x1="1" y1="20.2" x2="33" y2="20.2"/><line x1="1" y1="26.6" x2="33" y2="26.6"/></g></svg>横積み</button>
+        <button class="kind" data-k="2" aria-pressed="true"><svg viewBox="0 0 34 34"><rect class="s3" x="1" y="1" width="32" height="32"/><g class="seam"><line y1="1" x1="7.4" y2="33" x2="7.4"/><line y1="1" x1="13.8" y2="33" x2="13.8"/><line y1="1" x1="20.2" y2="33" x2="20.2"/><line y1="1" x1="26.6" y2="33" x2="26.6"/></g></svg>縦積み</button>
+      </div>
+      <p class="hint">1つだけ選ぶと全部その積み方になります。</p>
+      <label class="row" for="sens">細部の拾いやすさ <span class="val" id="sensv"></span></label>
+      <input id="sens" type="range" min="0" max="100" value="55">
+      <label class="row" style="justify-content:flex-start;gap:8px"><input id="smooth" type="checkbox" checked> 孤立したブロックをならす</label>
+    </div>
+
+    <div class="sec">
+      <h2>色</h2>
+      <div class="seg" id="palmode">
+        <button data-v="paint" aria-pressed="true">塗る色を選ぶ</button>
+        <button data-v="use" aria-pressed="false">自動で使う色</button>
+      </div>
+      <div class="curcolor" id="curcolor"></div>
+      <div class="palette" id="palette"></div>
+      <p class="hint" id="palhint"></p>
+    </div>
+
+    <div class="sec ratio">
+      <h2>比率のしくみ</h2>
+      <svg viewBox="0 0 240 118" role="img" aria-label="16mm角の中に、ポッチ2×2、プレート横5枚、プレート縦5枚がぴったり入る">
+        <g><rect class="s1" x="6" y="8" width="64" height="64"/>
+          <circle class="stud" cx="22" cy="24" r="9.6"/><circle class="stud" cx="54" cy="24" r="9.6"/><circle class="stud" cx="22" cy="56" r="9.6"/><circle class="stud" cx="54" cy="56" r="9.6"/>
+          <g class="seam"><line x1="38" y1="8" x2="38" y2="72"/><line x1="6" y1="40" x2="70" y2="40"/></g></g>
+        <g><rect class="s2" x="88" y="8" width="64" height="64"/><g class="seam"><line x1="88" y1="20.8" x2="152" y2="20.8"/><line x1="88" y1="33.6" x2="152" y2="33.6"/><line x1="88" y1="46.4" x2="152" y2="46.4"/><line x1="88" y1="59.2" x2="152" y2="59.2"/><line x1="120" y1="8" x2="120" y2="72"/></g></g>
+        <g><rect class="s3" x="170" y="8" width="64" height="64"/><g class="seam"><line y1="8" x1="182.8" y2="72" x2="182.8"/><line y1="8" x1="195.6" y2="72" x2="195.6"/><line y1="8" x1="208.4" y2="72" x2="208.4"/><line y1="8" x1="221.2" y2="72" x2="221.2"/><line x1="170" y1="40" x2="234" y2="40"/></g></g>
+        <text class="tx" x="38" y="88" text-anchor="middle">8mm×2</text><text class="tx" x="120" y="88" text-anchor="middle">3.2mm×5 段</text><text class="tx" x="202" y="88" text-anchor="middle">3.2mm×5 列</text>
+        <line class="ln" x1="6" y1="100" x2="234" y2="100"/><text class="tx" x="120" y="114" text-anchor="middle">どれも 16mm × 16mm</text>
+      </svg>
+    </div>
+  </aside>
+
+  <section class="work">
+    <div class="toolbar">
+      <div class="seg" id="tool" aria-label="ツール">
+        <button data-v="paint" aria-pressed="true">塗る</button>
+        <button data-v="pick" aria-pressed="false">スポイト</button>
+        <button data-v="mode" aria-pressed="false">積み方 切替</button>
+        <button data-v="erase" aria-pressed="false">自動に戻す</button>
+        <button data-v="view" aria-pressed="false">見るだけ</button>
+      </div>
+      <button class="btn" id="undo" title="Ctrl+Z">元に戻す</button>
+      <div class="grp"><label for="overlay">下絵</label><input id="overlay" type="range" min="0" max="100" value="0"></div>
+      <div class="grp"><label for="zoom">拡大</label><input id="zoom" type="range" min="50" max="400" value="100"></div>
+      <label class="grp"><input id="grid" type="checkbox" checked> 線を引く</label>
+    </div>
+    <div class="stage" id="stage"><canvas id="cv"></canvas></div>
+    <div class="status" id="status"><span>マスにカーソルを合わせると、位置と部品が出ます。「積み方 切替」でブロックをクリックすると 正面→横→縦 の順に変わります。</span></div>
+    <div class="stats" id="stats"></div>
+    <div class="parts">
+      <div class="parts-head">
+        <h2>必要なパーツ</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" id="clearEdits">手修正をすべて消す</button>
+          <button class="btn" id="copy">パーツ表をコピー</button>
+        </div>
+      </div>
+      <div class="tblwrap"><table>
+        <thead><tr><th>色</th><th>ポッチ正面<br>1×1</th><th>プレート<br>1×1</th><th>1×2</th><th>1×3</th><th>1×4</th><th>1×6</th><th>1×8</th><th>合計</th></tr></thead>
+        <tbody id="tbody"></tbody><tfoot id="tfoot"></tfoot>
+      </table></div>
+      <p class="hint" style="margin-top:8px">プレートの数は横積みと縦積みの合計です。同じ色が横（縦積みでは上下）に続く所は長いプレートにまとめて数えています。ポッチ正面と縦積みの部分はブラケットやSNOTブロックで向きを変えて取り付けます（その部品は表に含みません）。</p>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const PAL_RAW=[
+['White','ホワイト','FFFFFF'],['Light Bluish Gray','ライトブルーイッシュグレー','A0A5A9'],['Dark Bluish Gray','ダークブルーイッシュグレー','6C6E68'],['Black','ブラック','05131D'],
+['Red','レッド','C91A09'],['Dark Red','ダークレッド','720E0F'],['Coral','コーラル','FF698F'],['Bright Pink','ブライトピンク','E4ADC8'],['Dark Pink','ダークピンク','C870A0'],['Magenta','マゼンタ','923978'],
+['Medium Lavender','ミディアムラベンダー','AC78BA'],['Dark Purple','ダークパープル','3F3691'],['Dark Blue','ダークブルー','0A3463'],['Blue','ブルー','0055BF'],['Medium Blue','ミディアムブルー','5A93DB'],
+['Dark Azure','ダークアズール','078BC9'],['Medium Azure','ミディアムアズール','36AEBF'],['Sand Blue','サンドブルー','6074A1'],['Dark Turquoise','ダークターコイズ','008F9B'],['Sand Green','サンドグリーン','A0BCAC'],
+['Dark Green','ダークグリーン','184632'],['Green','グリーン','237841'],['Bright Green','ブライトグリーン','4B9F4A'],['Lime','ライム','BBE90B'],['Olive Green','オリーブグリーン','9B9A5A'],
+['Yellow','イエロー','F2CD37'],['Bright Light Yellow','ブライトライトイエロー','FFF03A'],['Bright Light Orange','ブライトライトオレンジ','F8BB3D'],['Orange','オレンジ','FE8A18'],['Dark Orange','ダークオレンジ','A95500'],
+['Tan','タン','E4CD9E'],['Dark Tan','ダークタン','958A73'],['Light Nougat','ライトヌガー','F6D7B3'],['Nougat','ヌガー','D09168'],['Medium Nougat','ミディアムヌガー','AA7D55'],
+['Reddish Brown','レディッシュブラウン','582A12'],['Dark Brown','ダークブラウン','352100'],['Pearl Gold','パールゴールド','AA7F2E']];
+const LUT=new Float32Array(256);for(let i=0;i<256;i++){const c=i/255;LUT[i]=c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4)}
+function lab(r,g,b){const R=LUT[r|0],G=LUT[g|0],B=LUT[b|0];
+  const f=t=>t>0.008856?Math.cbrt(t):7.787*t+16/116;
+  const fx=f((R*.4124+G*.3576+B*.1805)/.95047),fy=f(R*.2126+G*.7152+B*.0722),fz=f((R*.0193+G*.1192+B*.9505)/1.08883);
+  return [116*fy-16,500*(fx-fy),200*(fy-fz)]}
+const PAL=PAL_RAW.map(([en,ja,h])=>{const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4),16);return{en,ja,hex:'#'+h,rgb:[r,g,b],lab:lab(r,g,b)}});
+const enabled=PAL.map(()=>true);
+const KIND=['ポッチ正面','横積み','縦積み'],OV=['ovStud','ovSide','ovV'],KCOL=['--accent','--yellow','--blue'];
+
+const st={img:null,name:'サンプル画像（富士と波）',W:48,BW:2,use:[true,true,true],sens:55,smooth:true,tool:'paint',paint:4,palmode:'paint',overlay:0,grid:true,zoom:100};
+let G=null,P=30,PL=12,sprites={},hist=[],cur=null,hover=null,dirty=false;
+const cv=$('#cv'),ctx=cv.getContext('2d');
+
+function nearest(r,g,b){const L=lab(r,g,b);let bi=0,bd=1e9;for(let i=0;i<PAL.length;i++){if(!enabled[i])continue;const p=PAL[i].lab;const d=(L[0]-p[0])**2+(L[1]-p[1])**2+(L[2]-p[2])**2;if(d<bd){bd=d;bi=i}}return bi}
+
+function sampleImage(){const c=document.createElement('canvas');c.width=900;c.height=680;const x=c.getContext('2d');
+  let g=x.createLinearGradient(0,0,0,480);g.addColorStop(0,'#24508f');g.addColorStop(.6,'#7aa6d6');g.addColorStop(1,'#f4c78e');x.fillStyle=g;x.fillRect(0,0,900,680);
+  x.fillStyle='#d6352a';x.beginPath();x.arc(690,150,72,0,7);x.fill();
+  x.fillStyle='#fff';[[160,120,90,26],[230,105,60,20],[520,250,110,22],[600,236,60,16]].forEach(([a,b,w,h])=>{x.beginPath();x.ellipse(a,b,w,h,0,0,7);x.fill()});
+  x.fillStyle='#2b3f6e';x.beginPath();x.moveTo(40,500);x.lineTo(380,180);x.lineTo(470,180);x.lineTo(820,500);x.fill();
+  x.fillStyle='#f4f6f8';x.beginPath();x.moveTo(318,240);x.lineTo(380,180);x.lineTo(470,180);x.lineTo(535,242);
+  [[505,262],[480,240],[455,275],[430,245],[405,282],[380,248],[350,268]].forEach(p=>x.lineTo(...p));x.fill();
+  x.fillStyle='#3a2a1c';for(let k=0;k<5;k++)x.fillRect(70+k*26,330,10,170);x.fillStyle='#2e6b3a';x.beginPath();x.ellipse(122,330,80,40,0,0,7);x.fill();
+  x.fillStyle='#1c4f86';x.fillRect(0,470,900,210);
+  x.strokeStyle='#f4f6f8';x.lineWidth=7;for(let k=0;k<6;k++){x.beginPath();const y0=500+k*32;for(let px=0;px<=900;px+=6){const y=y0+Math.sin(px/38+k*1.3)*9;px?x.lineTo(px,y):x.moveTo(px,y)}x.stroke()}
+  x.fillStyle='#0d2a4d';x.fillRect(0,640,900,40);
+  return c}
+
+function build(keep){
+  const img=st.img,iw=img.naturalWidth||img.width,ih=img.naturalHeight||img.height;
+  const BW=st.BW,W=Math.max(BW,Math.round(st.W/BW)*BW),BX=W/BW,BY=Math.max(1,Math.round(W*8*ih/iw/16));
+  const VC=BW%2===0?W*5/2:0;
+  const FW=W*10,FH=BY*20,A=FW/FH;let sx=0,sy=0,sw=iw,sh=ih;
+  if(iw/ih>A){sw=ih*A;sx=(iw-sw)/2}else{sh=iw/A;sy=(ih-sh)/2}
+  const c=document.createElement('canvas');c.width=FW;c.height=FH;const x=c.getContext('2d',{willReadFrequently:true});
+  x.fillStyle='#fff';x.fillRect(0,0,FW,FH);x.imageSmoothingQuality='high';x.drawImage(img,sx,sy,sw,sh,0,0,FW,FH);
+  const d=x.getImageData(0,0,FW,FH).data;
+  const lb=new Float32Array(FW*FH*3);for(let i=0,j=0;i<d.length;i+=4,j+=3){const L=lab(d[i],d[i+1],d[i+2]);lb[j]=L[0];lb[j+1]=L[1];lb[j+2]=L[2]}
+  const cell=(x0,y0,w,h)=>{let r=0,g=0,b=0,n=w*h;for(let y=y0;y<y0+h;y++)for(let xx=x0;xx<x0+w;xx++){const i=(y*FW+xx)*4;r+=d[i];g+=d[i+1];b+=d[i+2]}return nearest(r/n,g/n,b/n)};
+  const SR=BY*2,DR=BY*5,aS=new Int16Array(W*SR),aD=new Int16Array(W*DR),aV=new Int16Array(VC*SR);
+  for(let r=0;r<SR;r++)for(let q=0;q<W;q++)aS[r*W+q]=cell(q*10,r*10,10,10);
+  for(let r=0;r<DR;r++)for(let q=0;q<W;q++)aD[r*W+q]=cell(q*10,r*4,10,4);
+  for(let r=0;r<SR;r++)for(let q=0;q<VC;q++)aV[r*VC+q]=cell(q*4,r*10,4,10);
+  const eS=new Float32Array(BX*BY),eD=new Float32Array(BX*BY),eV=new Float32Array(BX*BY);
+  const e2=(j,p)=>(lb[j]-p[0])**2+(lb[j+1]-p[1])**2+(lb[j+2]-p[2])**2;
+  for(let by=0;by<BY;by++)for(let bx=0;bx<BX;bx++){let es=0,ed=0,ev=0,n=0;
+    for(let py=by*20;py<by*20+20;py++){const sr=py/10|0,dr=py>>2;
+      for(let px=bx*BW*10;px<(bx+1)*BW*10;px++){const j=(py*FW+px)*3,q=px/10|0;
+        es+=e2(j,PAL[aS[sr*W+q]].lab);ed+=e2(j,PAL[aD[dr*W+q]].lab);if(VC)ev+=e2(j,PAL[aV[sr*VC+(px>>2)]].lab);n++}}
+    const b=by*BX+bx;eS[b]=es/n;eD[b]=ed/n;eV[b]=VC?ev/n:1e12}
+  const same=G&&G.W===W&&G.BY===BY&&G.BW===BW&&keep;
+  const had=G&&!same&&OV.concat('ovMode').some(k=>G[k].some(v=>v>=0));
+  G={W,BX,BY,BW,VC,crop:[sx,sy,sw,sh],aS,aD,aV,eS,eD,eV,
+    ovStud:same?G.ovStud:new Int16Array(W*SR).fill(-1),ovSide:same?G.ovSide:new Int16Array(W*DR).fill(-1),
+    ovV:same?G.ovV:new Int16Array(VC*SR).fill(-1),ovMode:same?G.ovMode:new Int8Array(BX*BY).fill(-1)};
+  if(!same)hist=[];
+  if(had)toast('大きさを変えたので、手修正はリセットしました');
+  if(!VC)G.ovMode.forEach((v,i)=>{if(v===2)G.ovMode[i]=-1});
+  updateKinds();decide();setScale();render();parts();
+}
+function allowed(){const ok=[st.use[0],st.use[1],st.use[2]&&G.VC>0];if(!ok.some(Boolean))ok[0]=true;return ok}
+function decide(){const{BX,BY,eS,eD,eV}=G,thr=1+300*((100-st.sens)/100)**2,ok=allowed();
+  let m=new Uint8Array(BX*BY);
+  for(let i=0;i<m.length;i++){const cost=[eS[i],eD[i]+(ok[0]?thr:0),eV[i]+(ok[0]?thr:0)];let bk=-1,bc=Infinity;
+    for(let k=0;k<3;k++)if(ok[k]&&cost[k]<bc){bc=cost[k];bk=k}m[i]=bk}
+  if(st.smooth&&ok.filter(Boolean).length>1){const m2=m.slice();
+    for(let y=0;y<BY;y++)for(let x=0;x<BX;x++){const cnt=[0,0,0];let n=0;
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const X=x+dx,Y=y+dy;if(X<0||Y<0||X>=BX||Y>=BY)continue;n++;cnt[m[Y*BX+X]]++}
+      const me=m[y*BX+x];if(n>=3&&cnt[me]===0)m2[y*BX+x]=cnt.indexOf(Math.max(...cnt))}
+    m=m2}
+  G.autoMode=m}
+const modeAt=b=>G.ovMode[b]>=0?G.ovMode[b]:G.autoMode[b];
+const studC=i=>G.ovStud[i]>=0?G.ovStud[i]:G.aS[i];
+const sideC=i=>G.ovSide[i]>=0?G.ovSide[i]:G.aD[i];
+const vC=i=>G.ovV[i]>=0?G.ovV[i]:G.aV[i];
+const colorOf=h=>[studC,sideC,vC][h.m](h.i);
+function split(L,cb){for(const s of[8,6,4,3,2,1])while(L>=s){cb(s);L-=s}}
+
+function sidePieces(){const{W,BW,BX,BY}=G,out=[];
+  for(let r=0;r<BY*5;r++){const by=r/5|0;let x=0;
+    while(x<W){if(modeAt(by*BX+(x/BW|0))!==1){x++;continue}
+      const c=sideC(r*W+x);let L=1;while(x+L<W&&modeAt(by*BX+((x+L)/BW|0))===1&&sideC(r*W+x+L)===c)L++;
+      let xx=x;split(L,s=>{out.push([r,xx,s,c]);xx+=s});x+=L}}
+  return out}
+function vertPieces(){const{BW,BX,BY,VC}=G,out=[],R=BY*2;if(!VC)return out;
+  for(let q=0;q<VC;q++){const bx=Math.floor(q*2/(5*BW));let r=0;
+    while(r<R){if(modeAt((r>>1)*BX+bx)!==2){r++;continue}
+      const c=vC(r*VC+q);let L=1;while(r+L<R&&modeAt(((r+L)>>1)*BX+bx)===2&&vC((r+L)*VC+q)===c)L++;
+      let rr=r;split(L,s=>{out.push([q,rr,s,c]);rr+=s});r+=L}}
+  return out}
+
+function shade(rgb,a){return`rgb(${rgb.map(v=>Math.round(a>0?v+(255-v)*a:v*(1+a))).join(',')})`}
+function setScale(){P=Math.max(10,Math.min(40,Math.round(1400/G.W/5)*5));PL=P*2/5;sprites={};cv.width=G.W*P;cv.height=G.BY*2*P;sizeCanvas()}
+function sizeCanvas(){const w=($('#stage').clientWidth-24)*st.zoom/100;cv.style.width=Math.max(100,w)+'px'}
+function studSprite(i){if(sprites[i])return sprites[i];const c=document.createElement('canvas');c.width=c.height=P;const x=c.getContext('2d'),rgb=PAL[i].rgb;
+  x.fillStyle=PAL[i].hex;x.fillRect(0,0,P,P);
+  x.fillStyle=shade(rgb,.22);x.fillRect(0,0,P,1);x.fillRect(0,0,1,P);
+  x.fillStyle=shade(rgb,-.35);x.fillRect(0,P-1,P,1);x.fillRect(P-1,0,1,P);
+  const cx=P/2,r=P*.3;x.fillStyle='rgba(0,0,0,.28)';x.beginPath();x.arc(cx+P*.05,cx+P*.06,r,0,7);x.fill();
+  const g=x.createRadialGradient(cx-r*.4,cx-r*.45,r*.1,cx,cx,r);g.addColorStop(0,shade(rgb,.35));g.addColorStop(1,PAL[i].hex);
+  x.fillStyle=g;x.beginPath();x.arc(cx,cx,r,0,7);x.fill();x.strokeStyle=shade(rgb,-.25);x.lineWidth=Math.max(1,P/30);x.stroke();
+  return sprites[i]=c}
+function plate(x,y,w,h,c){const rgb=PAL[c].rgb;ctx.fillStyle=PAL[c].hex;ctx.fillRect(x,y,w,h);
+  ctx.fillStyle=shade(rgb,.25);ctx.fillRect(x,y,w,1);ctx.fillRect(x,y,1,h);
+  ctx.fillStyle=shade(rgb,-.4);ctx.fillRect(x,y+h-1,w,1);ctx.fillRect(x+w-1,y,1,h)}
+
+function render(){dirty=false;const{W,BX,BY,BW}=G;ctx.fillStyle='#1a1c1f';ctx.fillRect(0,0,cv.width,cv.height);
+  for(let by=0;by<BY;by++)for(let bx=0;bx<BX;bx++){if(modeAt(by*BX+bx)!==0)continue;
+    for(let r=by*2;r<by*2+2;r++)for(let q=bx*BW;q<(bx+1)*BW;q++)ctx.drawImage(studSprite(studC(r*W+q)),q*P,r*P)}
+  for(const[r,x,L,c]of sidePieces())plate(x*P,(r/5|0)*2*P+(r%5)*PL,L*P,PL,c);
+  for(const[q,r,L,c]of vertPieces())plate(q*PL,r*P,PL,L*P,c);
+  if(st.overlay>0){ctx.globalAlpha=st.overlay/100;ctx.drawImage(st.img,...G.crop,0,0,cv.width,cv.height);ctx.globalAlpha=1}
+  if(st.grid){ctx.strokeStyle='rgba(255,255,255,.3)';ctx.lineWidth=1;ctx.beginPath();
+    for(let by=0;by<BY;by++)for(let bx=0;bx<BX;bx++){const m=modeAt(by*BX+bx),y0=by*2*P,x0=bx*BW*P,x1=x0+BW*P,y1=y0+2*P;
+      if(m===2){for(let k=1;k<BW*2.5;k++){ctx.moveTo(x0+k*PL+.5,y0);ctx.lineTo(x0+k*PL+.5,y1)}}
+      else for(let q=1;q<BW;q++){ctx.moveTo(x0+q*P+.5,y0);ctx.lineTo(x0+q*P+.5,y1)}
+      if(m===1){for(let k=1;k<5;k++){ctx.moveTo(x0,y0+k*PL+.5);ctx.lineTo(x1,y0+k*PL+.5)}}
+      else{ctx.moveTo(x0,y0+P+.5);ctx.lineTo(x1,y0+P+.5)}}
+    ctx.stroke();ctx.beginPath();
+    for(let bx=1;bx<BX;bx++){ctx.moveTo(bx*BW*P,0);ctx.lineTo(bx*BW*P,cv.height)}for(let by=1;by<BY;by++){ctx.moveTo(0,by*2*P);ctx.lineTo(cv.width,by*2*P)}
+    ctx.strokeStyle='rgba(0,0,0,.45)';ctx.lineWidth=3;ctx.stroke();ctx.strokeStyle='rgba(255,255,255,.75)';ctx.lineWidth=1;ctx.stroke()}
+  if(hover){ctx.strokeStyle='#f2cd37';ctx.lineWidth=3;
+    if(st.tool==='mode')ctx.strokeRect(hover.bx*BW*P+1.5,hover.by*2*P+1.5,BW*P-3,2*P-3);else ctx.strokeRect(hover.rx+1.5,hover.ry+1.5,hover.rw-3,hover.rh-3)}
+}
+const req=()=>{if(!dirty){dirty=true;requestAnimationFrame(render)}};
+
+function locate(e){const rc=cv.getBoundingClientRect(),X=(e.clientX-rc.left)/rc.width*cv.width,Y=(e.clientY-rc.top)/rc.height*cv.height;
+  const{W,BX,BY,BW,VC}=G,q=Math.floor(X/P),by=Math.floor(Y/(2*P));if(q<0||q>=W||by<0||by>=BY)return null;
+  const bx=q/BW|0,b=by*BX+bx,m=modeAt(b),yi=Y-by*2*P;
+  if(m===0){const r=by*2+Math.min(1,yi/P|0);return{q,by,bx,b,m,i:r*W+q,r,rx:q*P,ry:r*P,rw:P,rh:P}}
+  if(m===2){const c=Math.min(VC-1,Math.floor(X/PL)),r=by*2+Math.min(1,yi/P|0);return{q:c,by,bx,b,m,i:r*VC+c,r,rx:c*PL,ry:r*P,rw:PL,rh:P}}
+  const k=Math.min(4,Math.floor(yi/PL)),r=by*5+k;return{q,by,bx,b,m,i:r*W+q,r,rx:q*P,ry:by*2*P+k*PL,rw:P,rh:PL}}
+function setv(kind,i,v){const a=G[kind];if(a[i]===v)return;cur&&cur.push([kind,i,a[i]]);a[i]=v;req()}
+let touched=null;
+function act(h){if(!h)return;const t=st.tool;
+  if(t==='paint')setv(OV[h.m],h.i,st.paint);
+  else if(t==='erase')setv(OV[h.m],h.i,-1);
+  else if(t==='pick'){st.paint=colorOf(h);setTool('paint');drawPalette()}
+  else if(t==='mode'&&!touched.has(h.b)){touched.add(h.b);let n=(h.m+1)%3;if(n===2&&!G.VC)n=0;setv('ovMode',h.b,n)}}
+cv.addEventListener('pointerdown',e=>{if(st.tool==='view'||!G)return;cv.setPointerCapture(e.pointerId);cur=[];touched=new Set();act(locate(e))});
+cv.addEventListener('pointermove',e=>{if(!G)return;const h=locate(e);hover=h;showStatus(h);if(cur&&st.tool!=='pick')act(h);req()});
+const end=()=>{if(cur){if(cur.length){hist.push(cur);parts()}cur=null}};
+cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
+cv.addEventListener('pointerleave',()=>{hover=null;req()});
+function undo(){const g=hist.pop();if(!g){toast('戻せる操作はありません');return}for(let k=g.length-1;k>=0;k--){const[kind,i,v]=g[k];G[kind][i]=v}req();parts()}
+$('#undo').onclick=undo;
+addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo()}});
+
+function showStatus(h){if(!h)return;const c=colorOf(h),ed=G[OV[h.m]][h.i]>=0;
+  const pos=h.m===0?`横 <b>${h.q+1}</b> 列・<b>${h.r+1}</b> 段目`:h.m===1?`横 <b>${h.q+1}</b> 列・<b>${h.r+1}</b> 枚目`:`左から <b>${h.q+1}</b> 枚目・<b>${h.r+1}</b> 段目`;
+  $('#status').innerHTML=`<span><b>${KIND[h.m]}</b></span><span>${pos}</span><span>ブロック <b>${h.bx+1}-${h.by+1}</b></span><span><i style="display:inline-block;width:11px;height:11px;border-radius:2px;background:${PAL[c].hex};border:1px solid rgba(0,0,0,.3);vertical-align:-1px"></i> <b>${PAL[c].ja}</b> ${ed?'<span class="tag">手修正</span>':''}</span>`}
+
+function parts(){const{W,BX,BY,BW}=G,rows=PAL.map(()=>({s:0,p:{1:0,2:0,3:0,4:0,6:0,8:0}})),nb=[0,0,0];
+  for(let by=0;by<BY;by++)for(let bx=0;bx<BX;bx++){const m=modeAt(by*BX+bx);nb[m]++;if(m!==0)continue;
+    for(let r=by*2;r<by*2+2;r++)for(let q=bx*BW;q<(bx+1)*BW;q++)rows[studC(r*W+q)].s++}
+  for(const p of sidePieces())rows[p[3]].p[p[2]]++;
+  for(const p of vertPieces())rows[p[3]].p[p[2]]++;
+  const list=rows.map((v,i)=>({...v,i,t:v.s+Object.values(v.p).reduce((a,b)=>a+b,0)})).filter(v=>v.t).sort((a,b)=>b.t-a.t);
+  const z=n=>n?`<td>${n}</td>`:'<td class="z">·</td>';
+  $('#tbody').innerHTML=list.map(v=>`<tr><td><span class="sw" style="background:${PAL[v.i].hex}"></span>${PAL[v.i].ja} <span class="hint">${PAL[v.i].en}</span></td>${z(v.s)}${[1,2,3,4,6,8].map(k=>z(v.p[k])).join('')}<td><b>${v.t}</b></td></tr>`).join('');
+  const T=k=>list.reduce((a,v)=>a+(k==='s'?v.s:k==='t'?v.t:v.p[k]),0);
+  $('#tfoot').innerHTML=`<tr><td>合計 ${list.length}色</td>${z(T('s'))}${[1,2,3,4,6,8].map(k=>z(T(k))).join('')}<td><b>${T('t')}</b></td></tr>`;
+  const tot=BX*BY,pc=k=>Math.round(nb[k]/tot*100);
+  const bar=`<div class="mixbar">${nb.map((n,k)=>`<i style="width:${n/tot*100}%;background:var(${KCOL[k]})"></i>`).join('')}</div>`;
+  $('#stats').innerHTML=[['仕上がり寸法',`${(W*0.8).toFixed(1)}×${(BY*1.6).toFixed(1)}cm`],['ブロック数',`${BX}×${BY}`],
+    ['積み方の割合',`${pc(0)} / ${pc(1)} / ${pc(2)}%`+bar,'正面 / 横 / 縦'],['パーツ総数',T('t').toLocaleString()]]
+    .map(([a,b,s])=>`<div class="stat"><small>${a}${s?`（${s}）`:''}</small><b>${b}</b></div>`).join('');
+  parts.text=['色\tポッチ正面1×1\tプレート1×1\t1×2\t1×3\t1×4\t1×6\t1×8\t合計',...list.map(v=>[`${PAL[v.i].ja} (${PAL[v.i].en})`,v.s,...[1,2,3,4,6,8].map(k=>v.p[k]),v.t].join('\t'))].join('\n')}
+$('#copy').onclick=async()=>{try{await navigator.clipboard.writeText(parts.text);toast('パーツ表をコピーしました（表計算に貼り付けできます）')}catch(e){toast('コピーできませんでした。表を選択してコピーしてください')}};
+$('#clearEdits').onclick=()=>{const g=[];OV.concat('ovMode').forEach(k=>G[k].forEach((v,i)=>{if(v>=0){g.push([k,i,v]);G[k][i]=-1}}));if(g.length){hist.push(g);toast('手修正を消しました（元に戻すで復帰できます）')}req();parts()};
+
+function drawPalette(){const el=$('#palette');el.innerHTML='';PAL.forEach((p,i)=>{const b=document.createElement('button');b.className='chip'+(st.palmode==='paint'&&st.paint===i?' sel':'')+(st.palmode==='use'&&!enabled[i]?' off':'');
+  b.style.background=p.hex;b.title=`${p.ja} / ${p.en}`;b.setAttribute('aria-label',p.ja);
+  b.onclick=()=>{if(st.palmode==='paint'){st.paint=i;if(st.tool!=='paint')setTool('paint')}else{enabled[i]=!enabled[i];if(!enabled.some(Boolean))enabled[i]=true;clearTimeout(drawPalette.t);drawPalette.t=setTimeout(()=>build(true),250)}drawPalette()};el.appendChild(b)});
+  $('#curcolor').innerHTML=`<i style="background:${PAL[st.paint].hex}"></i>塗る色：<b>${PAL[st.paint].ja}</b>`;
+  $('#palhint').textContent=st.palmode==='paint'?'色をクリックして、作業台の「塗る」で1マスずつ色を当てます。':'自動変換で使う色をオン・オフします。持っている色だけに絞れます。'}
+
+function updateKinds(){document.querySelectorAll('.kind').forEach(b=>{const k=+b.dataset.k;b.setAttribute('aria-pressed',st.use[k]&&!(k===2&&!G.VC));b.disabled=k===2&&!G.VC});
+  $('#bwhint').textContent=G.VC?`1ブロック＝幅${G.BW*8}mm×高さ16mm。この中を1種類の積み方で埋めます。`:'1ポッチ幅（8mm）は3.2mmで割り切れないので、縦積みは使えません。2ポッチ以上にしてください。'}
+document.querySelectorAll('.kind').forEach(b=>b.onclick=()=>{const k=+b.dataset.k;st.use[k]=!st.use[k];
+  if(!st.use.some(Boolean)){st.use[k]=true;toast('積み方は最低1つ選んでください')}updateKinds();decide();req();parts()});
+function seg(id,key,fn){const el=$(id);el.querySelectorAll('button').forEach(b=>b.onclick=()=>{const v=isNaN(b.dataset.v)?b.dataset.v:+b.dataset.v;st[key]=v;el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));fn&&fn(v)})}
+function setTool(v){st.tool=v;document.querySelectorAll('#tool button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===v));$('#stage').classList.toggle('view',v==='view');cv.style.touchAction=v==='view'?'auto':'none'}
+seg('#tool','tool',setTool);seg('#bw','BW',()=>{wv();build(false)});seg('#palmode','palmode',drawPalette);
+const wv=()=>{const W=Math.max(st.BW,Math.round(st.W/st.BW)*st.BW);$('#widthv').textContent=`${W}ポッチ / ${(W*0.8).toFixed(1)}cm`};
+let wt;$('#width').oninput=e=>{st.W=+e.target.value;wv();clearTimeout(wt);wt=setTimeout(()=>build(false),180)};
+$('#sens').oninput=e=>{st.sens=+e.target.value;$('#sensv').textContent=st.sens;decide();req();clearTimeout(wt);wt=setTimeout(parts,120)};
+$('#smooth').onchange=e=>{st.smooth=e.target.checked;decide();req();parts()};
+$('#overlay').oninput=e=>{st.overlay=+e.target.value;req()};
+$('#zoom').oninput=e=>{st.zoom=+e.target.value;sizeCanvas()};
+$('#grid').onchange=e=>{st.grid=e.target.checked;req()};
+addEventListener('resize',()=>G&&sizeCanvas());
+
+function thumb(){const t=$('#thumb'),x=t.getContext('2d'),img=st.img,iw=img.naturalWidth||img.width,ih=img.naturalHeight||img.height,s=Math.max(112/iw,112/ih);
+  x.clearRect(0,0,112,112);x.drawImage(img,(112-iw*s)/2,(112-ih*s)/2,iw*s,ih*s);$('#imgname').textContent=st.name}
+function loadFile(f){if(!f||!f.type.startsWith('image/')){toast('画像ファイルを選んでください');return}
+  const url=URL.createObjectURL(f),im=new Image();im.onload=()=>{st.img=im;st.name=f.name||'貼り付けた画像';thumb();build(false);toast('画像を読み込みました')};im.onerror=()=>toast('この画像は読み込めませんでした');im.src=url}
+$('#file').onchange=e=>loadFile(e.target.files[0]);
+[$('#drop'),$('#stage')].forEach(el=>{el.addEventListener('dragover',e=>{e.preventDefault();$('#drop').classList.add('over')});
+  el.addEventListener('dragleave',()=>$('#drop').classList.remove('over'));el.addEventListener('drop',e=>{e.preventDefault();$('#drop').classList.remove('over');loadFile(e.dataTransfer.files[0])})});
+addEventListener('paste',e=>{const it=[...(e.clipboardData?.items||[])].find(i=>i.type.startsWith('image/'));if(it)loadFile(it.getAsFile())});
+
+let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2400)}
+
+st.img=sampleImage();thumb();wv();$('#sensv').textContent=st.sens;drawPalette();setTool('paint');build(false);
+</script>
+</body></html>
